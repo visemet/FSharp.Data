@@ -5,40 +5,43 @@
 module ProviderImplementation.BsonInference
 
 open System
+open MongoDB.Bson
 open FSharp.Data
 open FSharp.Data.Runtime
 open FSharp.Data.Runtime.StructuralTypes
 
 /// Infer the type of a BSON value.
-let rec inferType parentName bson =
-    match bson with
-    | BsonValue.Null -> InferedType.Null
-    | BsonValue.Boolean _ -> InferedType.Primitive (typeof<bool>, None, false)
-    | BsonValue.Int32 _ -> InferedType.Primitive (typeof<int>, None, false)
-    | BsonValue.Int64 _ -> InferedType.Primitive (typeof<int64>, None, false)
-    | BsonValue.Double _ -> InferedType.Primitive (typeof<float>, None, false)
-    | BsonValue.String _ -> InferedType.Primitive (typeof<string>, None, false)
-    | BsonValue.DateTime _ -> InferedType.Primitive (typeof<DateTime>, None, false)
+let rec inferType parentName (bsonValue : BsonValue) =
+    match bsonValue.BsonType with
+    | BsonType.Null -> InferedType.Null
+    | BsonType.Boolean -> InferedType.Primitive (typeof<bool>, None, false)
+    | BsonType.Int32 -> InferedType.Primitive (typeof<int>, None, false)
+    | BsonType.Int64 -> InferedType.Primitive (typeof<int64>, None, false)
+    | BsonType.Double -> InferedType.Primitive (typeof<float>, None, false)
+    | BsonType.String -> InferedType.Primitive (typeof<string>, None, false)
+    | BsonType.DateTime -> InferedType.Primitive (typeof<DateTime>, None, false)
 
-    | BsonValue.Binary _ -> failwith "not implemented yet"
-    | BsonValue.ObjectId _ -> failwith "not implemented yet"
+    | BsonType.Binary -> InferedType.Primitive (typeof<BsonBinaryData>, None, false)
+    | BsonType.ObjectId -> InferedType.Primitive (typeof<ObjectId>, None, false)
 
-    | BsonValue.Array elems ->
+    | BsonType.Array elems ->
         let elemName = NameUtils.singularize parentName
         let allowEmptyValues = false
 
-        elems
+        bsonValue.AsBsonArray
         |> Seq.map (inferType elemName)
         |> StructuralInference.inferCollectionType allowEmptyValues
 
-    | BsonValue.Document elems ->
+    | BsonType.Document elems ->
         let recordName =
             if String.IsNullOrEmpty parentName
             then None
             else Some parentName
         let fields =
-            [ for elemName, value in elems ->
-                let typ = inferType elemName value
-                { Name = elemName; Type = typ } ]
+            [ for elem in bsonValue.AsBsonDocument ->
+                let typ = inferType elem.Name elem.Value
+                { Name = elem.Name; Type = typ } ]
 
         InferedType.Record (recordName, fields, false)
+
+    | _ -> InferedType.Primitive (typeof<BsonType>, None, false)

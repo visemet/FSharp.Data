@@ -1,76 +1,50 @@
-﻿#if INTERACTIVE
-#load "SetupTesting.fsx"
-SetupTesting.generateSetupScript __SOURCE_DIRECTORY__ "FSharp.Data.DesignTime"
-#load "__setup__FSharp.Data.DesignTime__.fsx"
-#else
-module internal Test
-#endif
+﻿#I @"C:\Users\10gen\Documents\GitHub\FSharp.Data\bin"
+#I @"C:\Users\10gen\Documents\GitHub\FSharp.Data\lib\mongo-csharp-driver\MongoDB.Bson\bin\net40"
+#I @"C:\Users\10gen\Documents\GitHub\FSharp.Data\lib\mongo-csharp-driver\MongoDB.Bson\bin\net45"
+
+#r @"C:\Users\10gen\Documents\GitHub\FSharp.Data\lib\mongo-csharp-driver\MongoDB.Bson\bin\net40\Debug\MongoDB.Bson.dll"
+#load @"C:\Users\10gen\Documents\GitHub\FSharp.Data\lib\mongo-csharp-driver\MongoDB.Bson\bin\net40\Debug\MongoDB.Bson.dll"
+#r "bin/Debug/FSharp.Data.dll"
 
 open System
 open System.IO
-open System.Net
-open ProviderImplementation
+open System.Text
+open MongoDB.Bson
+open FSharp.Data
+open FSharp.Data.Runtime
 
-let (++) a b = Path.Combine(a, b)
-let resolutionFolder = __SOURCE_DIRECTORY__ ++ ".." ++ "tests" ++ "FSharp.Data.Tests" ++ "Data"
-let outputFolder = __SOURCE_DIRECTORY__ ++ ".." ++ "tests" ++ "FSharp.Data.DesignTime.Tests" ++ "expected"
-let assemblyName = "FSharp.Data.dll"
+let text = "\x05\x00\x00\x00\x00"
+printf "%A" <| Encoding.UTF8.GetBytes(text)
+BsonValue.Parse(text)
 
-type Platform = Net40 | Portable7 | Portable47
+printf "%x\n" (int <| Encoding.UTF8.GetChars([| 0xc2uy; 0x07uy; 0x00uy; 0x00uy |]).[0])
+Encoding.UTF8.GetBytes("\xc2\x07\x00\x00")
+Encoding.UTF8.GetBytes("\xfd\ff\x07\x00\x00")
+BitConverter.ToInt32([| 0xc2uy; 0x07uy; 0x00uy; 0x00uy |], 0)
 
-let dump signatureOnly ignoreOutput platform saveToFileSystem (inst:TypeProviderInstantiation) =
-    let runtimeAssembly = 
-        match platform with
-        | Net40 -> __SOURCE_DIRECTORY__ ++ ".." ++ "bin" ++ assemblyName
-        | Portable7 -> __SOURCE_DIRECTORY__ ++ ".." ++ "bin" ++ "portable7" ++ assemblyName
-        | Portable47 -> __SOURCE_DIRECTORY__ ++ ".." ++ "bin" ++ "portable47" ++ assemblyName    
-    inst.Dump resolutionFolder (if saveToFileSystem then outputFolder else "") runtimeAssembly signatureOnly ignoreOutput
-    |> Console.WriteLine
+let moreText = "\x16\x00\x00\x00\x02hello\x00\x06\x00\x00\x00world\x00\x00"
+BsonValue.Parse(moreText)
 
-let dumpAll inst = 
-    dump false false Net40 false inst
-    dump false false Portable7 false inst
-    dump false false Portable47 false inst
+let evenMoreText = "\x31\x00\x00\x00\x04BSON\x00\x26\x00\x00\x00\x00020\x00\x08\x00\x00\x00awesome\x00\x00011\x00\x33\x33\x33\x33\x33\x33\x14\x40\x00102\x00\xc2\x07\x00\x00\x00\x00"
+Encoding.UTF8.GetBytes(evenMoreText)
 
-Json { Sample = "optionals.json"
-       SampleIsList = false
-       RootName = ""
-       Culture = "" 
-       Encoding = ""
-       ResolutionFolder = ""
-       EmbeddedResource = "" }
-|> dumpAll
+Encoding.Default
 
-Xml { Sample = "JsonInXml.xml"
-      SampleIsList = true
-      Global = false
-      Culture = "" 
-      Encoding = ""
-      ResolutionFolder = ""
-      EmbeddedResource = "" }
-|> dumpAll
+BsonValue.Parse(evenMoreText)
 
-Csv { Sample = "AirQuality.csv"
-      Separators = ";" 
-      InferRows = Int32.MaxValue
-      Schema = ""
-      HasHeaders = true
-      IgnoreErrors = false
-      AssumeMissingValues = false
-      PreferOptionals = false
-      Quote = '"'
-      MissingValues = "NaN,NA,#N/A,:"
-      CacheRows = true
-      Culture = "" 
-      Encoding = ""
-      ResolutionFolder = ""
-      EmbeddedResource = "" }
-|> dumpAll
+type Simple = BsonProvider<"\x16\x00\x00\x00\x02hello\x00\x06\x00\x00\x00world\x00\x00">
+let simple = Simple.Parse("\x16\x00\x00\x00\x02hello\x00\x06\x00\x00\x00world\x00\x00")
 
-let testCases = 
-    __SOURCE_DIRECTORY__ ++ ".." ++ "tests" ++ "FSharp.Data.DesignTime.Tests" ++ "SignatureTestCases.config"
-    |> File.ReadAllLines
-    |> Array.map TypeProviderInstantiation.Parse
+printf "%A\n" simple.BsonValue
+printf "%A\n" simple.Hello
 
-for testCase in testCases do
-    dump false false Net40 true testCase
+type Complex = BsonProvider<"\x31\x00\x00\x00\x04BSON\x00\x26\x00\x00\x00\x020\x00\x08\x00\x00\x00awesome\x00\x011\x00\x33\x33\x33\x33\x33\x33\x14\x40\x102\x00\xc2\x07\x00\x00\x00\x00">
+let complex = Complex.Parse("\x31\x00\x00\x00\x04BSON\x00\x26\x00\x00\x00\x020\x00\x08\x00\x00\x00awesome\x00\x011\x00\x33\x33\x33\x33\x33\x33\x14\x40\x102\x00\xc2\x07\x00\x00\x00\x00")
+
+printf "%A\n" complex.BsonValue
+printf "%A\n" complex.Bson.Numbers
+
+
+
+
+

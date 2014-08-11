@@ -3,6 +3,7 @@
 open System
 open System.IO
 open Microsoft.FSharp.Core.CompilerServices
+open MongoDB.Bson
 open ProviderImplementation
 open ProviderImplementation.ProvidedTypes
 open ProviderImplementation.ProviderHelpers
@@ -28,7 +29,7 @@ type public BsonProvider(cfg:TypeProviderConfig) as this =
         // Generate the required type
         let tpType = ProvidedTypeDefinition(asm, ns, typeName, Some typeof<obj>)
 
-        let sample = args.[0] :?> string
+        let sample = args.[0] :?> BsonDocument
         let sampleIsList = args.[1] :?> bool
         let rootName = args.[2] :?> string
         let rootName = if String.IsNullOrWhiteSpace rootName then "Root" else NameUtils.singularize rootName
@@ -50,17 +51,15 @@ type public BsonProvider(cfg:TypeProviderConfig) as this =
 
             { GeneratedType = tpType
               RepresentationType = result.ConvertedType
-              CreateFromTextReader = fun reader ->
-                    result.GetConverter ctx <@@ BsonDocument.Create(%reader, cultureStr) @@>
-              CreateFromTextReaderForSampleList = fun reader -> 
-                    result.GetConverter ctx <@@ BsonDocument.CreateList(%reader, cultureStr) @@> }
+              CreateFromTextReader = fun _reader -> failwith "not implemented yet"
+              CreateFromTextReaderForSampleList = fun _reader -> failwith "not implemented yet" }
 
-        generateType "BSON" sample sampleIsList (id >> failwith "parseSingle") (id >> failwith "parseList") getSpecFromSamples 
-                     version this cfg replacer encodingStr resolutionFolder resource typeName
+        let spec = getSpecFromSamples (Seq.singleton sample)
+        spec.GeneratedType
 
     // Add static parameter that specifies the API we want to get (compile-time) 
     let parameters = 
-        [ ProvidedStaticParameter("Sample", typeof<string>)
+        [ ProvidedStaticParameter("Sample", typeof<BsonDocument>)
           ProvidedStaticParameter("SampleIsList", typeof<bool>, parameterDefaultValue = false) 
           ProvidedStaticParameter("RootName", typeof<string>, parameterDefaultValue = "Root") 
           ProvidedStaticParameter("Culture", typeof<string>, parameterDefaultValue = "") 

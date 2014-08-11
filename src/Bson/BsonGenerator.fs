@@ -20,41 +20,53 @@ open ProviderImplementation.ProvidedTypes
 
 /// Context that is used to generate the BSON types.
 type BsonGenerationContext =
-  { CultureStr : string
-    TypeProviderType : ProvidedTypeDefinition
-    Replacer : AssemblyReplacer 
-    // to nameclash type names
-    UniqueNiceName : string -> string 
-    IBsonDocumentType : Type
-    BsonValueType : Type
-    BsonRuntimeType : Type
-    TypeCache : Dictionary<InferedType, ProvidedTypeDefinition>
-    GenerateConstructors : bool }
-  static member Create(cultureStr, tpType, replacer, ?uniqueNiceName, ?typeCache) =
-    let uniqueNiceName = defaultArg uniqueNiceName (NameUtils.uniqueGenerator NameUtils.nicePascalName)
-    let typeCache = defaultArg typeCache (Dictionary())
-    BsonGenerationContext.Create(cultureStr, tpType, replacer, uniqueNiceName, typeCache, true)
-  static member Create(cultureStr, tpType, replacer, uniqueNiceName, typeCache, generateConstructors) =
-    { CultureStr = cultureStr
-      TypeProviderType = tpType
-      Replacer = replacer 
-      UniqueNiceName = uniqueNiceName 
-      IBsonDocumentType = replacer.ToRuntime typeof<IBsonDocument>
-      BsonValueType = replacer.ToRuntime typeof<BsonValue>
-      BsonRuntimeType = replacer.ToRuntime typeof<BsonRuntime>
-      TypeCache = typeCache 
-      GenerateConstructors = generateConstructors }
-  member x.MakeOptionType(typ:Type) = 
-    (x.Replacer.ToRuntime typedefof<option<_>>).MakeGenericType typ
+    {
+        CultureStr : string
+        TypeProviderType : ProvidedTypeDefinition
+        Replacer : AssemblyReplacer
+        // to nameclash type names
+        UniqueNiceName : string -> string
+        IBsonDocumentType : Type
+        BsonValueType : Type
+        BsonRuntimeType : Type
+        TypeCache : Dictionary<InferedType, ProvidedTypeDefinition>
+        GenerateConstructors : bool
+    }
+
+    static member Create(cultureStr, tpType, replacer, ?uniqueNiceName, ?typeCache) =
+        let uniqueNiceName = defaultArg uniqueNiceName (NameUtils.uniqueGenerator NameUtils.nicePascalName)
+        let typeCache = defaultArg typeCache (Dictionary())
+        BsonGenerationContext.Create(cultureStr, tpType, replacer, uniqueNiceName, typeCache, true)
+
+    static member Create(cultureStr, tpType, replacer, uniqueNiceName, typeCache, generateConstructors) =
+        {
+            CultureStr = cultureStr
+            TypeProviderType = tpType
+            Replacer = replacer
+            UniqueNiceName = uniqueNiceName
+            IBsonDocumentType = replacer.ToRuntime typeof<IBsonTop>
+            BsonValueType = replacer.ToRuntime typeof<BsonValue>
+            BsonRuntimeType = replacer.ToRuntime typeof<BsonRuntime>
+            TypeCache = typeCache
+            GenerateConstructors = generateConstructors
+        }
+
+    member x.MakeOptionType(typ:Type) =
+        (x.Replacer.ToRuntime typedefof<option<_>>).MakeGenericType typ
 
 type BsonGenerationResult = 
-    { ConvertedType : Type
-      Converter : (Expr -> Expr) option
-      ConversionCallingType : BsonConversionCallingType }
-    member x.GetConverter ctx = 
+    {
+        ConvertedType : Type
+        Converter : (Expr -> Expr) option
+        ConversionCallingType : BsonConversionCallingType
+    }
+
+    member x.GetConverter ctx =
         defaultArg x.Converter ctx.Replacer.ToRuntime
+
     member x.ConverterFunc ctx =
       ReflectionHelpers.makeDelegate (x.GetConverter ctx) ctx.IBsonDocumentType
+ 
     member x.ConvertedTypeErased ctx =
       if x.ConvertedType.IsArray then
         match x.ConvertedType.GetElementType() with
@@ -65,8 +77,8 @@ type BsonGenerationResult =
         | :? ProvidedTypeDefinition -> ctx.IBsonDocumentType
         | _ -> x.ConvertedType
 
-module BsonTypeBuilder = 
-  
+module BsonTypeBuilder =
+
   let (?) = QuotationBuilder.(?)
 
   // check if a type was already created for the inferedType before creating a new one
@@ -174,21 +186,21 @@ module BsonTypeBuilder =
               | InferedTypeTag.Record _ -> "Record"
               | _ -> tag.NiceName
           
-          let name, typ, constructorType = 
-              match multiplicity with 
+          let name, typ, constructorType =
+              match multiplicity with
               | InferedMultiplicity.OptionalSingle ->
                   makeUnique propName,
-                  ctx.MakeOptionType result.ConvertedType, 
+                  ctx.MakeOptionType result.ConvertedType,
                   if forCollection
                   then ctx.MakeOptionType (replaceJDocWithJValue ctx result.ConvertedType)
                   else replaceJDocWithJValue ctx result.ConvertedType
               | InferedMultiplicity.Single ->
-                  makeUnique propName, 
-                  result.ConvertedType, 
+                  makeUnique propName,
+                  result.ConvertedType,
                   replaceJDocWithJValue ctx result.ConvertedType
               | InferedMultiplicity.Multiple ->
-                  makeUnique (NameUtils.pluralize tag.NiceName), 
-                  result.ConvertedType.MakeArrayType(), 
+                  makeUnique (NameUtils.pluralize tag.NiceName),
+                  result.ConvertedType.MakeArrayType(),
                   (replaceJDocWithJValue ctx result.ConvertedType).MakeArrayType()
 
           ProvidedProperty(name, typ, GetterCode = codeGenerator multiplicity result tag.Code),
@@ -202,10 +214,9 @@ module BsonTypeBuilder =
         let cultureStr = ctx.CultureStr
 
         if forCollection then
-            let ctor = ProvidedConstructor(parameters, InvokeCode = fun args -> 
+            let ctor = ProvidedConstructor(parameters, InvokeCode = fun args ->
                 let elements = Expr.NewArray(typeof<obj>, args |> List.map (fun a -> Expr.Coerce(a, typeof<obj>)))
-                let cultureStr = ctx.CultureStr
-                <@@ BsonRuntime.CreateArray(%%elements, cultureStr) @@>
+                <@@ BsonRuntime.CreateArray(%%elements) @@>
                 |> ctx.Replacer.ToRuntime)
             objectTy.AddMember ctor
         else
@@ -243,7 +254,7 @@ module BsonTypeBuilder =
 
         let typ, conv, conversionCallingType = 
             PrimitiveInferedProperty.Create("", inferedType, optional, unit)
-            |> convertBsonValue ctx.Replacer "" ctx.CultureStr canPassAllConversionCallingTypes
+            |> convertBsonValue ctx.Replacer canPassAllConversionCallingTypes
 
         { ConvertedType = typ
           Converter = Some (ctx.Replacer.ToDesignTime >> conv)
@@ -351,8 +362,7 @@ module BsonTypeBuilder =
                                       args 
                                       |> List.mapi (fun i a -> Expr.NewTuple [ Expr.Value names.[i]
                                                                                Expr.Coerce(a, typeof<obj>) ]))
-                    let cultureStr = ctx.CultureStr
-                    <@@ BsonRuntime.CreateRecord(%%properties, cultureStr) @@>
+                    <@@ BsonRuntime.CreateDocument(%%properties) @@>
                     |> ctx.Replacer.ToRuntime)
 
             objectTy.AddMember <| 
@@ -373,8 +383,7 @@ module BsonTypeBuilder =
           | InferedMultiplicity.Single -> fun (Singleton jDoc) -> 
               // Generate method that calls `GetArrayChildByTypeTag`
               let jDoc = ctx.Replacer.ToDesignTime jDoc
-              let cultureStr = ctx.CultureStr
-              result.GetConverter ctx <@@ BsonRuntime.GetArrayChildByTypeTag(%%jDoc, cultureStr, tagCode) @@>
+              result.GetConverter ctx <@@ BsonRuntime.GetArrayChildByTypeTag(%%jDoc, tagCode) @@>
           
           | InferedMultiplicity.Multiple -> fun (Singleton jDoc) -> 
               // Generate method that calls `GetArrayChildrenByTypeTag` 

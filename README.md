@@ -8,6 +8,16 @@ We're open to contributions from anyone. If you want to help out but don't know 
 
 You can see the version history [here](RELEASE_NOTES.md).
 
+## Error encountered
+
+When trying to reference the FSharp.Data assembly in [Test.fsx](src/Test.fsx)
+
+> Parser Error: The type provider 'ProviderImplementation.BsonProvider' reported an error:
+> The type provider constructor has thrown an exception:
+> Could not load file or assembly 'MongoDB.Bson, Version=1.9.2.235, Culture=neutral,
+> PublicKeyToken=f686731cfb9cc103' or one of its dependencies.
+> The system cannot find the file specified.
+
 ## Building
 
 - Simply build FSharp.Data.sln in Visual Studio, Mono Develop, or Xamarin Studio. You can also use the FAKE script:

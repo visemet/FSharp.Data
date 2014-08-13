@@ -1,9 +1,4 @@
-﻿#I @"C:\Users\10gen\Documents\GitHub\FSharp.Data\bin"
-#I @"C:\Users\10gen\Documents\GitHub\FSharp.Data\lib\mongo-csharp-driver\MongoDB.Bson\bin\net40"
-#I @"C:\Users\10gen\Documents\GitHub\FSharp.Data\lib\mongo-csharp-driver\MongoDB.Bson\bin\net45"
-
-#r @"C:\Users\10gen\Documents\GitHub\FSharp.Data\lib\mongo-csharp-driver\MongoDB.Bson\bin\net40\Debug\MongoDB.Bson.dll"
-#load @"C:\Users\10gen\Documents\GitHub\FSharp.Data\lib\mongo-csharp-driver\MongoDB.Bson\bin\net40\Debug\MongoDB.Bson.dll"
+﻿#r "bin/Debug/MongoDB.Bson.dll"
 #r "bin/Debug/FSharp.Data.dll"
 
 open System

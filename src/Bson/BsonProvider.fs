@@ -18,9 +18,6 @@ open FSharp.Data.Runtime.StructuralTypes
 type public BsonProvider(cfg:TypeProviderConfig) as this =
     inherit DisposableTypeProviderForNamespaces()
 
-    do this.RegisterProbingFolder @"C:\Users\10gen\Documents\GitHub\FSharp.Data\lib\mongo-csharp-driver\bin\net40\Debug"
-    // do cfg.
-
     // Generate namespace and type 'FSharp.Data.BsonProvider'
     let asm, version, replacer = AssemblyResolver.init cfg
     let ns = "FSharp.Data"
